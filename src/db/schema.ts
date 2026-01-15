@@ -16,7 +16,7 @@ export const users_profile = pgTable('users_profile', {
     date_of_birth: date('date_of_birth').notNull(),
     gender: varchar('gender', { length: 256 }).notNull(),
     height: integer('height').notNull(),
-    weight: decimal('weight', { precision: 5, scale: 2 }).notNull(),
+    weight: integer('weight').notNull(),
     created_at: timestamp('created_at').notNull().defaultNow(),
     updated_at: timestamp('updated_at').notNull().defaultNow(),
 });
