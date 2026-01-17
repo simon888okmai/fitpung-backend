@@ -42,7 +42,7 @@ export const authRoutes = new Elysia()
                     date_of_birth: date_of_birth, // ส่งสตริง YYYY-MM-DD
                     gender,
                     height,
-                    weight: weight.toString(), // แปลงเป็น string เพราะใน DB เป็น decimal
+                    weight,
                 });
             });
 
@@ -66,4 +66,43 @@ export const authRoutes = new Elysia()
             height: t.Number(),
             weight: t.Number(),
         })
+    })
+    .post('/login', async ({ body, set }) => {
+        try {
+            const { username, password } = body;
+            const [user] = await db.select()
+                .from(users)
+                .where(eq(users.username, username));
+
+            if (!user) {
+                set.status = 401;
+                return { success: false, message: 'ไม่พบผู้ใช้งาน' };
+            }
+
+            const isMatch = await Bun.password.verify(password, user.password);
+            if (!isMatch) {
+                set.status = 401;
+                return { success: false, message: 'รหัสผ่านไม่ถูกต้อง' };
+            }
+
+            set.status = 200;
+            return {
+                success: true, message: 'เข้าสู่ระบบสำเร็จ!',
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                }
+            };
+        } catch (error) {
+            console.error('Login Error:', error);
+            set.status = 500;
+            return { success: false, message: 'เกิดข้อผิดพลาดจากฝั่งเซิร์ฟเวอร์' };
+        }
+    }, {
+        body: t.Object({
+            username: t.String(),
+            password: t.String(),
+        })
     });
+
