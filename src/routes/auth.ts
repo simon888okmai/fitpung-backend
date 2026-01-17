@@ -1,10 +1,16 @@
 import { Elysia, t } from 'elysia';
+import { jwt } from '@elysiajs/jwt';
 import { db } from '../db';
 import { users, users_profile } from '../db/schema';
 import { eq, or } from 'drizzle-orm';
 
 export const authRoutes = new Elysia()
-    .post('/register', async ({ body, set }) => {
+    .use(jwt({
+        name: 'jwt',
+        secret: process.env.JWT_SECRET || 'secret',
+    })
+    )
+    .post('/register', async ({ body, set, jwt }) => {
         try {
             // 1. รับข้อมูลทั้งหมดมาเป็นก้อนเดียว
             const {
@@ -22,6 +28,7 @@ export const authRoutes = new Elysia()
                 return { success: false, message: 'Username หรือ Email นี้มีผู้ใช้งานแล้ว' };
             }
 
+            let newUserId = null;
             // 3. เริ่ม Transaction (จุดสำคัญ!)
             await db.transaction(async (tx) => {
 
@@ -35,6 +42,8 @@ export const authRoutes = new Elysia()
                     email,
                 }).returning({ id: users.id });
 
+                newUserId = newUser.id;
+
                 // 3.3 สร้าง Profile (ใช้ ID จากข้อ 3.2)
                 await tx.insert(users_profile).values({
                     user_id: newUser.id,
@@ -46,8 +55,22 @@ export const authRoutes = new Elysia()
                 });
             });
 
+            const token = await jwt.sign({
+                id: newUserId,
+                username: username
+            });
+
             set.status = 201;
-            return { success: true, message: 'สมัครสมาชิกพร้อมสร้างโปรไฟล์สำเร็จ!' };
+            return {
+                success: true,
+                message: 'สมัครสมาชิกพร้อมสร้างโปรไฟล์สำเร็จ!',
+                token: token,
+                user: {
+                    id: newUserId,
+                    username: username,
+                    email: email,
+                }
+            };
 
         } catch (error) {
             console.error('Register Error:', error);
@@ -67,7 +90,7 @@ export const authRoutes = new Elysia()
             weight: t.Number(),
         })
     })
-    .post('/login', async ({ body, set }) => {
+    .post('/login', async ({ body, set, jwt }) => {
         try {
             const { username, password } = body;
             const [user] = await db.select()
@@ -85,9 +108,15 @@ export const authRoutes = new Elysia()
                 return { success: false, message: 'รหัสผ่านไม่ถูกต้อง' };
             }
 
+            const token = await jwt.sign({
+                id: user.id,
+                username: user.username
+            });
+
             set.status = 200;
             return {
                 success: true, message: 'เข้าสู่ระบบสำเร็จ!',
+                token: token,
                 user: {
                     id: user.id,
                     username: user.username,
