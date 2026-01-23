@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
-import { db } from '../db';
-import { users, users_profile } from '../db/schema';
+import { db } from '../../db';
+import { users, usersProfile } from '../../db/schema';
 import { eq, or } from 'drizzle-orm';
 
 export const authRoutes = new Elysia()
@@ -45,10 +45,10 @@ export const authRoutes = new Elysia()
                 newUserId = newUser.id;
 
                 // 3.3 สร้าง Profile (ใช้ ID จากข้อ 3.2)
-                await tx.insert(users_profile).values({
-                    user_id: newUser.id,
+                await tx.insert(usersProfile).values({
+                    userId: newUser.id,
                     name,
-                    date_of_birth: date_of_birth, // ส่งสตริง YYYY-MM-DD
+                    dateOfBirth: date_of_birth, // ส่งสตริง YYYY-MM-DD
                     gender,
                     height,
                     weight,
