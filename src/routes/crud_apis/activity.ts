@@ -12,7 +12,7 @@ export const activityRoutes = new Elysia({ prefix: '/activities' })
     // 🟢 1. บันทึกการวิ่ง (POST /)
     .post('/', async ({ body, set }) => {
         try {
-            const { userId, type, distance, duration, calories, routePath, shoeId } = body;
+            const { userId, type, distance, duration, calories, routePath, shoeId, startTime, endTime } = body;
 
             // A. บันทึก Activity ลง Database
             const newActivity = await db.insert(activities).values({
@@ -23,7 +23,8 @@ export const activityRoutes = new Elysia({ prefix: '/activities' })
                 calories,
                 pace: distance > 0 ? (duration / 60) / distance : 0, // ป้องกันการหารด้วย 0
                 routePath,
-                startTime: new Date(),
+                startTime: startTime ? new Date(startTime) : new Date(),
+                endTime: endTime ? new Date(endTime) : undefined,
                 shoeId: shoeId || null,
             }).returning();
 
@@ -63,7 +64,9 @@ export const activityRoutes = new Elysia({ prefix: '/activities' })
                 type: t.Optional(t.String()),
                 timestamp: t.Optional(t.Number())
             })),
-            shoeId: t.Optional(t.Numeric())
+            shoeId: t.Optional(t.Numeric()),
+            startTime: t.Optional(t.String()),
+            endTime: t.Optional(t.String()),
         })
     })
 

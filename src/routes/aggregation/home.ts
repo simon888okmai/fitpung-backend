@@ -2,16 +2,36 @@ import { Elysia, t } from 'elysia';
 import { db } from '../../db';
 import { usersProfile, weeklyGoals, activities, shoes } from '../../db/schema';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { jwt } from '@elysiajs/jwt';
 
 export const homeRoutes = new Elysia({ prefix: '/home' })
+    .use(jwt({
+        name: 'jwt',
+        secret: process.env.JWT_SECRET || 'secret',
+    }))
+    .derive(async ({ jwt, headers, set }) => {
+        const auth = headers['authorization']
+        const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null;
 
-    .get('/', async ({ query, set }) => {
+        if (!token) {
+            set.status = 401;
+            throw new Error('No token provided')
+        }
+
+        const profile = await jwt.verify(token);
+        if (!profile) {
+            set.status = 401;
+            throw new Error('Invalid token')
+        }
+
+        return {
+            user: profile
+        };
+    })
+
+    .get('/', async ({ set, user }) => {
         try {
-            const userId = Number(query.userId);
-            if (!userId) {
-                set.status = 400;
-                return { error: 'UserId required' };
-            }
+            const userId = Number(user.id);
 
             // --- 1. เตรียมวันเวลา ---
             const now = new Date();

@@ -61,8 +61,8 @@ export const activities = pgTable('activities', {
 
     routePath: json('route_path'), // เก็บพิกัด GPS เป็น JSON Array
 
-    startTime: timestamp('start_time').defaultNow(),
-    endTime: timestamp('end_time'),
+    startTime: timestamp('start_time', { withTimezone: true }).defaultNow(),
+    endTime: timestamp('end_time', { withTimezone: true }),
 });
 
 // --------------------------------------------------------
