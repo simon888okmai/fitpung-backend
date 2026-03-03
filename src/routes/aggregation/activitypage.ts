@@ -1,140 +1,108 @@
 import { Elysia, t } from 'elysia';
-import { jwt } from '@elysiajs/jwt';
+import { authMiddleware } from '../../middlewares/auth.middleware';
 import { db } from '../../db';
 import { activities, weeklyGoals, userBadges, badges, usersProfile } from '../../db/schema';
 import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 
-export const activityPageRoute = new Elysia({ prefix: '/stats' })
-    .use(jwt({
-        name: 'jwt',
-        secret: process.env.JWT_SECRET || 'secret', // ⚠️ Production ควรใช้ .env จริงจังนะครับ
-    }))
-    .derive(async ({ jwt, headers, set }) => {
-        const auth = headers['authorization']
-        const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null;
+export const activityPageRoute = new Elysia()
+    .use(authMiddleware)
+    .group('/stats', (app) => app
+        // 🟢 GET /?month=1&year=2026
+        .get('/', async ({ query, set, user }) => {
+            const userId = Number(user.id);
+            const month = Number(query.month);
+            const year = Number(query.year);
 
-        if (!token) {
-            set.status = 401;
-            throw new Error('No token provided')
-        }
+            if (!month || !year) {
+                set.status = 400;
+                return { error: 'Month and year are required' };
+            }
 
-        const profile = await jwt.verify(token);
-        if (!profile) {
-            set.status = 401;
-            throw new Error('Invalid token')
-        }
+            try {
+                // 👤 0. ดึงชื่อ User
+                const profile = await db.query.usersProfile.findFirst({
+                    where: eq(usersProfile.userId, userId)
+                });
 
-        return {
-            user: profile
-        };
-    })
-    // 🟢 GET /?month=1&year=2026
-    .get('/', async ({ query, set, user }) => {
-        const userId = Number(user.id);
-        const month = Number(query.month);
-        const year = Number(query.year);
+                // 🗓️ 1. กำหนดช่วงเวลาเดือนนี้
+                const startDate = new Date(year, month - 1, 1);
+                const endDate = new Date(year, month, 0, 23, 59, 59);
 
-        if (!month || !year) { // userId มีแน่ๆ เพราะมาจาก token
-            set.status = 400;
-            return { error: 'Month and year are required' };
-        }
+                // 🏃‍♂️ 2. ดึง Activity เดือนนี้
+                const monthlyActivities = await db.query.activities.findMany({
+                    where: and(
+                        eq(activities.userId, userId),
+                        gte(activities.startTime, startDate),
+                        lte(activities.startTime, endDate)
+                    ),
+                    orderBy: [desc(activities.startTime)]
+                });
 
-        try {
-            // 👤 0. ดึงชื่อ User
-            const profile = await db.query.usersProfile.findFirst({
-                where: eq(usersProfile.userId, userId)
-            });
+                // --- 🧮 คำนวณ Summary ---
+                const totalDistance = monthlyActivities.reduce((sum, act) => sum + act.distance, 0);
+                const totalDuration = monthlyActivities.reduce((sum, act) => sum + act.duration, 0);
+                const totalCalories = monthlyActivities.reduce((sum, act) => sum + act.calories, 0);
 
-            // 🗓️ 1. กำหนดช่วงเวลาเดือนนี้
-            const startDate = new Date(year, month - 1, 1);
-            const endDate = new Date(year, month, 0, 23, 59, 59);
+                const runDays = [...new Set(monthlyActivities.map(act => {
+                    return act.startTime ? new Date(act.startTime).getDate() : null
+                }))].filter(d => d !== null).sort((a, b) => (a || 0) - (b || 0));
 
-            // 🏃‍♂️ 2. ดึง Activity เดือนนี้
-            const monthlyActivities = await db.query.activities.findMany({
-                where: and(
-                    eq(activities.userId, userId),
-                    gte(activities.startTime, startDate),
-                    lte(activities.startTime, endDate)
-                ),
-                orderBy: [desc(activities.startTime)]
-            });
+                const streak = 3;
 
-            // --- 🧮 คำนวณ Summary ---
-            const totalDistance = monthlyActivities.reduce((sum, act) => sum + act.distance, 0);
-            const totalDuration = monthlyActivities.reduce((sum, act) => sum + act.duration, 0); // หน่วยเป็นอะไรขึ้นอยู่กับ DB (วินาที หรือ นาที)
-            const totalCalories = monthlyActivities.reduce((sum, act) => sum + act.calories, 0);
+                // --- 🎯 Weekly Goal ---
+                const activeGoal = await db.query.weeklyGoals.findFirst({
+                    where: and(eq(weeklyGoals.userId, userId), eq(weeklyGoals.status, 'ACTIVE')),
+                    orderBy: [desc(weeklyGoals.createdAt)]
+                });
 
-            // Run Days (เฉพาะวันที่)
-            // Logic นี้โอเค เพราะเอาแค่ "เลขวันที่" (1-31) ไม่เกี่ยวกับ Timezone มากนัก
-            const runDays = [...new Set(monthlyActivities.map(act => {
-                return act.startTime ? new Date(act.startTime).getDate() : null
-            }))].filter(d => d !== null).sort((a, b) => (a || 0) - (b || 0));
+                // --- 🏆 Badges ---
+                const myBadgeCount = (await db.select({ count: sql<number>`count(*)` })
+                    .from(userBadges).where(eq(userBadges.userId, userId)))[0].count;
+                const totalBadgeCount = (await db.select({ count: sql<number>`count(*)` })
+                    .from(badges))[0].count;
 
-            const streak = 3; // TODO: Mock
+                // --- 📝 Recent Runs ---
+                const recentRuns = monthlyActivities.slice(0, 5).map(run => {
+                    return {
+                        id: `run-${run.id}`,
+                        timestamp: run.startTime,
+                        distance: Number(run.distance.toFixed(2)),
+                        duration: run.duration,
+                        pace: run.pace || (run.distance > 0 ? (run.duration / 60) / run.distance : 0),
+                        kcal: run.calories
+                    };
+                });
 
-            // --- 🎯 Weekly Goal ---
-            const activeGoal = await db.query.weeklyGoals.findFirst({
-                where: and(eq(weeklyGoals.userId, userId), eq(weeklyGoals.status, 'ACTIVE')),
-                orderBy: [desc(weeklyGoals.createdAt)]
-            });
-
-            // --- 🏆 Badges ---
-            const myBadgeCount = (await db.select({ count: sql<number>`count(*)` })
-                .from(userBadges).where(eq(userBadges.userId, userId)))[0].count;
-            const totalBadgeCount = (await db.select({ count: sql<number>`count(*)` })
-                .from(badges))[0].count;
-
-            // --- 📝 Recent Runs (RAW DATA MODE) ---
-            const recentRuns = monthlyActivities.slice(0, 5).map(run => {
                 return {
-                    id: `run-${run.id}`,
-                    // ✅ ส่ง Timestamp ดิบๆ ให้ Frontend แปลงเป็น "Jan 22, 18:30" ตามเวลาเครื่องเขา
-                    timestamp: run.startTime,
-
-                    distance: Number(run.distance.toFixed(2)),
-
-                    // ✅ ส่งตัวเลขดิบๆ (วินาที/นาที) ให้ Frontend แปลงเป็น "00:30:00"
-                    duration: run.duration,
-
-                    // ✅ Pace ส่งตัวเลขดิบๆ ไปเลย
-                    pace: run.pace || (run.distance > 0 ? (run.duration / 60) / run.distance : 0),
-
-                    kcal: run.calories
-                };
-            });
-
-            return {
-                user: {
-                    name: profile?.name || "Runner",
-                },
-
-                summary: {
-                    streak: streak,
-                    totalDistance: Number(totalDistance.toFixed(2)),
-                    totalTime: totalDuration, // ✅ ส่งตัวเลขรวม
-                    totalCalories: totalCalories,
-                    runDays: runDays,
-                },
-
-                cards: {
-                    weeklyGoal: {
-                        current: activeGoal ? (activeGoal.currentKm || 0) : 0,
-                        target: activeGoal ? activeGoal.targetKm : 100,
-                        unit: "km",
-                        status: activeGoal && (activeGoal.currentKm || 0) >= activeGoal.targetKm ? "Completed" : "On Track",
+                    user: {
+                        name: profile?.name || "Runner",
                     },
-                    badges: {
-                        unlocked: Number(myBadgeCount),
-                        total: Number(totalBadgeCount),
-                    }
-                },
+                    summary: {
+                        streak: streak,
+                        totalDistance: Number(totalDistance.toFixed(2)),
+                        totalTime: totalDuration,
+                        totalCalories: totalCalories,
+                        runDays: runDays,
+                    },
+                    cards: {
+                        weeklyGoal: {
+                            current: activeGoal ? (activeGoal.currentKm || 0) : 0,
+                            target: activeGoal ? activeGoal.targetKm : 100,
+                            unit: "km",
+                            status: activeGoal && (activeGoal.currentKm || 0) >= activeGoal.targetKm ? "Completed" : "On Track",
+                        },
+                        badges: {
+                            unlocked: Number(myBadgeCount),
+                            total: Number(totalBadgeCount),
+                        }
+                    },
+                    recentRuns: recentRuns
+                };
 
-                recentRuns: recentRuns
-            };
-
-        } catch (error) {
-            console.error(error);
-            set.status = 500;
-            return { error: 'Failed to fetch stats' };
-        }
-    });
+            } catch (error) {
+                console.error(error);
+                set.status = 500;
+                return { error: 'Failed to fetch stats' };
+            }
+        })
+    );
