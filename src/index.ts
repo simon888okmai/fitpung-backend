@@ -6,6 +6,7 @@ import { homeRoutes } from './routes/aggregation/home';
 import { shoeRoutes } from './routes/crud_apis/shoe';
 import { badgeRoutes } from './routes/crud_apis/badge';
 import { activityPageRoute } from './routes/aggregation/activitypage';
+import { profileRoutes } from './routes/crud_apis/profile';
 
 const app = new Elysia()
     .get('/', () => ({
@@ -20,6 +21,7 @@ const app = new Elysia()
     .use(badgeRoutes)
     .use(shoeRoutes)
     .use(activityPageRoute)
+    .use(profileRoutes)
     .listen(3001);
 
 console.log(`🦊 Backend พร้อมแล้วที่ port ${app.server?.port}`);
