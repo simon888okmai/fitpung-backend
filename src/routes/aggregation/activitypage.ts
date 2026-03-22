@@ -82,6 +82,7 @@ export const activityPageRoute = new Elysia()
                             target: activeGoal ? activeGoal.targetKm : 100,
                             unit: "km",
                             status: activeGoal && (activeGoal.currentKm || 0) >= activeGoal.targetKm ? "Completed" : "On Track",
+                            endDate: activeGoal ? activeGoal.endDate : null
                         },
                         badges: {
                             unlocked: Number(myBadgeCount),

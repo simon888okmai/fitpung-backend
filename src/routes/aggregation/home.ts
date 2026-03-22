@@ -52,7 +52,8 @@ export const homeRoutes = new Elysia()
                             current: currentGoal.currentKm,
                             target: currentGoal.targetKm,
                             streak: 0,
-                            unit: "km"
+                            unit: "km",
+                            endDate: currentGoal.endDate
                         } : null,
                         lastRun: lastActivity ? {
                             date: lastActivity.startTime,
