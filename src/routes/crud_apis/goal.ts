@@ -7,12 +7,10 @@ import { authMiddleware } from '../../middlewares/auth.middleware';
 export const goalRoutes = new Elysia()
     .use(authMiddleware)
     .group('/goals', (app) => app
-        // 🟢 1. GET /current
         .get('/current', async ({ user, set }) => {
             try {
                 const userId = Number(user.id);
 
-                // --- Logic เดิม ---
                 const now = new Date();
                 const currentDay = now.getDay();
                 const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
@@ -46,13 +44,11 @@ export const goalRoutes = new Elysia()
             }
         })
 
-        // 🟢 2. POST /
         .post('/', async ({ body, user, set }) => {
             try {
                 const userId = Number(user.id);
                 const { target } = body;
 
-                // --- Logic เดิม ---
                 const now = new Date();
                 const currentDay = now.getDay();
                 const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);

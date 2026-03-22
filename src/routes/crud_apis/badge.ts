@@ -10,7 +10,6 @@ export const badgeRoutes = new Elysia()
         .get('/', async ({ user, set }) => {
             try {
                 const userId = Number(user.id);
-                // ดึงเหรียญทั้งหมด + เช็คว่า User ได้หรือยัง
                 const allBadges = await db.query.badges.findMany();
                 const myBadges = await db.select({
                     badgeId: userBadges.badgeId,
@@ -24,17 +23,12 @@ export const badgeRoutes = new Elysia()
                     earnedMap.set(badge.badgeId, badge.earnedAt);
                 });
 
-                // Map ผลลัพธ์กลับไป
                 const result = allBadges.map(badge => {
-                    // 1. ดึงวันที่ออกมาจาก Map โดยใช้ ID ของเหรียญนั้นๆ
                     const earnedDate = earnedMap.get(badge.id);
 
                     return {
                         ...badge,
-                        // 2. เช็คว่า "มีเหรียญ ID นี้ใน Map ไหม?" (ถ้ามี = ปลดล็อกแล้ว)
                         isUnlocked: earnedMap.has(badge.id),
-
-                        // 3. ถ้ามีวันที่ ให้แปลงเป็น String ISO ส่งกลับไป (ถ้าไม่มีส่ง null)
                         earnedAt: earnedDate ? new Date(earnedDate).toISOString() : null
                     };
                 });

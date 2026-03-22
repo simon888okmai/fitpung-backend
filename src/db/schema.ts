@@ -1,10 +1,6 @@
-// src/db/schema.ts
 import { pgTable, serial, text, varchar, integer, timestamp, date, doublePrecision, boolean, json } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-// --------------------------------------------------------
-// 1. Users & Profile
-// --------------------------------------------------------
 export const users = pgTable('users', {
     id: serial('id').primaryKey(),
     username: varchar('username', { length: 256 }).notNull().unique(),
@@ -26,48 +22,39 @@ export const usersProfile = pgTable('users_profile', {
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-// --------------------------------------------------------
-// 2. Shoes (ตู้รองเท้า)
-// --------------------------------------------------------
 export const shoes = pgTable('shoes', {
     id: serial('id').primaryKey(),
     userId: integer('user_id').notNull().references(() => users.id),
 
-    brand: varchar('brand', { length: 100 }).notNull(), // เช่น Nike, Adidas
-    model: varchar('model', { length: 100 }).notNull(), // เช่น Pegasus 40
-    name: varchar('name', { length: 100 }),             // ชื่อเล่น เช่น "คู่เก่ง"
+    brand: varchar('brand', { length: 100 }).notNull(),
+    model: varchar('model', { length: 100 }).notNull(),
+    name: varchar('name', { length: 100 }),
 
-    currentDistance: doublePrecision('current_distance').default(0), // วิ่งไปกี่โลแล้ว
-    maxDistance: integer('max_distance').default(800),               // ระยะแจ้งเตือน (Target)
+    currentDistance: doublePrecision('current_distance').default(0),
+    maxDistance: integer('max_distance').default(800),
 
-    isDefault: boolean('is_default').default(false),    // เป็นคู่หลักไหม?
-    status: varchar('status', { length: 20 }).default('ACTIVE'), // ACTIVE, RETIRED, DELETED
+    isDefault: boolean('is_default').default(false),
+    status: varchar('status', { length: 20 }).default('ACTIVE'),
 
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// --------------------------------------------------------
-// 3. Activities (บันทึกการวิ่ง)
-// --------------------------------------------------------
 export const activities = pgTable('activities', {
     id: serial('id').primaryKey(),
     userId: integer('user_id').notNull().references(() => users.id),
-    shoeId: integer('shoe_id').references(() => shoes.id), // เชื่อมกับรองเท้า
+    shoeId: integer('shoe_id').references(() => shoes.id),
     type: varchar('type', { length: 50 }).default('RUN'),
     distance: doublePrecision('distance').notNull(),
     duration: integer('duration').notNull(),
     calories: integer('calories').notNull(),
     pace: doublePrecision('pace'),
 
-    routePath: json('route_path'), // เก็บพิกัด GPS เป็น JSON Array
+    routePath: json('route_path'),
 
     startTime: timestamp('start_time', { withTimezone: true }).defaultNow(),
     endTime: timestamp('end_time', { withTimezone: true }),
 });
 
-// --------------------------------------------------------
-// 4. Weekly Goals (เป้าหมายรายสัปดาห์)
-// --------------------------------------------------------
 export const weeklyGoals = pgTable('weekly_goals', {
     id: serial('id').primaryKey(),
     userId: integer('user_id').notNull().references(() => users.id),
@@ -84,20 +71,15 @@ export const weeklyGoals = pgTable('weekly_goals', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// --------------------------------------------------------
-// 5. Badge System (ระบบเหรียญรางวัล) 🏅 [UPDATED]
-// --------------------------------------------------------
 export const badges = pgTable('badges', {
     id: serial('id').primaryKey(),
 
-    // ส่วนหน้าตา (Display)
-    name: varchar('name', { length: 100 }).notNull(),        // ชื่อเหรียญ
-    description: text('description'),                        // คำอธิบาย
-    icon: text('icon'),                                    // URL รูปภาพ/Icon (เปลี่ยนจาก icon เป็น image เพื่อให้ตรงกับโค้ด)
+    name: varchar('name', { length: 100 }).notNull(),
+    description: text('description'),
+    icon: text('icon'),
 
-    // ส่วนเงื่อนไข (Logic)
-    criteriaType: varchar('criteria_type', { length: 50 }).notNull(), // EX: TOTAL_DIST, TOTAL_RUNS
-    criteriaValue: integer('criteria_value').notNull(),      // EX: 10, 100
+    criteriaType: varchar('criteria_type', { length: 50 }).notNull(),
+    criteriaValue: integer('criteria_value').notNull(),
 
     createdAt: timestamp('created_at').defaultNow(),
 });
@@ -110,20 +92,15 @@ export const userBadges = pgTable('user_badges', {
     earnedAt: timestamp('earned_at').defaultNow(),
 });
 
-
-// ========================================================
-// RELATIONS (ความสัมพันธ์)
-// ========================================================
-
 export const usersRelations = relations(users, ({ one, many }) => ({
     profile: one(usersProfile, {
         fields: [users.id],
         references: [usersProfile.userId],
     }),
     activities: many(activities),
-    weeklyGoals: many(weeklyGoals), // แก้ชื่อจาก goals เป็น weeklyGoals ให้ชัดเจน
+    weeklyGoals: many(weeklyGoals),
     badges: many(userBadges),
-    shoes: many(shoes), // ✅ เพิ่มความสัมพันธ์กับรองเท้า
+    shoes: many(shoes),
 }));
 
 export const activitiesRelations = relations(activities, ({ one }) => ({
@@ -152,7 +129,6 @@ export const shoesRelations = relations(shoes, ({ one, many }) => ({
     activities: many(activities),
 }));
 
-// ✅ เพิ่ม Relations ของ Badges
 export const badgesRelations = relations(badges, ({ many }) => ({
     owners: many(userBadges),
 }));

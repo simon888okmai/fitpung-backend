@@ -3,7 +3,6 @@ import { badges, userBadges, activities } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 
 export const checkAndUnlockBadges = async (userId: number, currentActivity: any) => {
-    // 1. ดึงสถิติรวมจาก DB
     const stats = await db.select({
         totalDistance: sql<number>`coalesce(sum(${activities.distance}), 0)`,
         totalRuns: sql<number>`count(${activities.id})`,
@@ -13,18 +12,15 @@ export const checkAndUnlockBadges = async (userId: number, currentActivity: any)
 
     const totalRuns = Number(stats[0].totalRuns);
 
-    // 2. เตรียมตัวแปรจาก Activity ปัจจุบัน
     const runDist = Number(currentActivity.distance);
     const runCal = Number(currentActivity.calories);
-    const runDuration = Number(currentActivity.duration); // (นาที)
+    const runDuration = Number(currentActivity.duration);
     const runPace = Number(currentActivity.pace);
 
-    // เรื่องเวลา ⏰
     const runDate = new Date(currentActivity.startTime);
     const hour = runDate.getHours();
-    const day = runDate.getDay();       // 0=Sun, 6=Sat
+    const day = runDate.getDay();
 
-    // 3. กรองเหรียญที่ User มีแล้วออก
     const ownedBadges = await db.select({ id: userBadges.badgeId })
         .from(userBadges)
         .where(eq(userBadges.userId, userId));
@@ -36,7 +32,6 @@ export const checkAndUnlockBadges = async (userId: number, currentActivity: any)
 
     const newUnlockedBadges = [];
 
-    // 4. 🕵️‍♂️ ตรวจเงื่อนไข (Switch Case)
     for (const badge of availableBadges) {
         let isUnlocked = false;
 
@@ -45,17 +40,17 @@ export const checkAndUnlockBadges = async (userId: number, currentActivity: any)
                 if (totalRuns >= badge.criteriaValue) isUnlocked = true; break;
             case 'ONE_RUN_DIST':
                 if (runDist >= badge.criteriaValue) isUnlocked = true; break;
-            case 'ONE_RUN_CAL': // 🔥 Burning Man
+            case 'ONE_RUN_CAL':
                 if (runCal >= badge.criteriaValue) isUnlocked = true; break;
-            case 'ONE_RUN_DURATION': // 🔋 Hour of Power
+            case 'ONE_RUN_DURATION':
                 if (runDuration >= badge.criteriaValue) isUnlocked = true; break;
-            case 'TIME_MORNING': // 🐔 05:00 - 10:00
+            case 'TIME_MORNING':
                 if (hour >= 5 && hour < 10) isUnlocked = true; break;
-            case 'TIME_NIGHT': // 🦉 20:00 - 04:00
+            case 'TIME_NIGHT':
                 if (hour >= 20 || hour < 4) isUnlocked = true; break;
-            case 'DAY_WEEKEND': // 🏖️ Sat/Sun
+            case 'DAY_WEEKEND':
                 if (day === 0 || day === 6) isUnlocked = true; break;
-            case 'SPECIAL_SPEED_DEMON': // ⚡ Pace <= 4 & Dist >= 10
+            case 'SPECIAL_SPEED_DEMON':
                 if (runDist >= 10 && runPace <= 4) isUnlocked = true; break;
         }
 

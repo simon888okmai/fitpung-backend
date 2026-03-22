@@ -1,4 +1,3 @@
-// src/routes/crud_apis/activity.ts
 import { Elysia, t } from 'elysia';
 import { db } from '../../db';
 import { activities } from '../../db/schema';
@@ -11,13 +10,11 @@ import { authMiddleware } from '../../middlewares/auth.middleware';
 export const activityRoutes = new Elysia()
     .use(authMiddleware)
     .group('/activities', (app) => app
-        // 🟢 1. บันทึกการวิ่ง (POST /)
         .post('/', async ({ body, user, set }) => {
             try {
                 const userId = Number(user.id);
                 const { type, distance, duration, calories, routePath, shoeId, startTime, endTime } = body;
 
-                // A. บันทึก Activity ลง Database
                 const newActivity = await db.insert(activities).values({
                     userId,
                     type: type || 'RUN',
@@ -31,15 +28,12 @@ export const activityRoutes = new Elysia()
                     shoeId: shoeId || null,
                 }).returning();
 
-                // B. [Auto-Update Goal]
                 await updateWeeklyGoalProgress(userId, distance);
 
-                // C. [Auto-Update Shoe]
                 if (shoeId) {
                     await updateShoeMileage(shoeId, distance);
                 }
 
-                // D. [Check Badges]
                 const unlockedBadges = await checkAndUnlockBadges(userId, newActivity[0]);
 
                 return {
@@ -71,7 +65,6 @@ export const activityRoutes = new Elysia()
             })
         })
 
-        // 🟢 2. ดูประวัติทั้งหมด (GET /)
         .get('/', async ({ user, set }) => {
             const userId = Number(user.id);
 
@@ -91,7 +84,6 @@ export const activityRoutes = new Elysia()
             return { data: history };
         })
 
-        // 🟢 3. ดูรายละเอียดเจาะลึก (GET /:id)
         .get('/:id', async ({ params, set }) => {
             const id = Number(params.id);
 

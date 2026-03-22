@@ -11,7 +11,6 @@ export const homeRoutes = new Elysia()
             try {
                 const userId = Number(user.id);
 
-                // --- 1. เตรียมวันเวลา ---
                 const now = new Date();
                 const currentDay = now.getDay();
                 const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
@@ -19,7 +18,6 @@ export const homeRoutes = new Elysia()
                 const startDate = new Date(now.setDate(diff)); startDate.setHours(0, 0, 0, 0);
                 const endDate = new Date(startDate); endDate.setDate(startDate.getDate() + 6); endDate.setHours(23, 59, 59, 999);
 
-                // --- 2. Query ข้อมูลพร้อมกัน ---
                 const [profile, currentGoal, lastActivity, defaultShoe] = await Promise.all([
                     db.query.usersProfile.findFirst({
                         where: eq(usersProfile.userId, userId),
@@ -44,7 +42,6 @@ export const homeRoutes = new Elysia()
                     })
                 ]);
 
-                // --- 3. จัด Format ---
                 return {
                     status: 'success',
                     data: {

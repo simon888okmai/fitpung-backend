@@ -1,4 +1,3 @@
-// src/routes/shoe.ts
 import { Elysia, t } from 'elysia';
 import { db } from '../../db';
 import { shoes } from '../../db/schema';
@@ -8,7 +7,6 @@ import { authMiddleware } from '../../middlewares/auth.middleware';
 export const shoeRoutes = new Elysia()
     .use(authMiddleware)
     .group('/shoes', (app) => app
-        // 🟢 1. GET / -> ดูรายการรองเท้าทั้งหมด
         .get('/', async ({ user, set }) => {
             const userId = Number(user.id);
 
@@ -29,7 +27,6 @@ export const shoeRoutes = new Elysia()
             }
         })
 
-        // 🟢 2. POST / -> เพิ่มรองเท้าคู่ใหม่
         .post('/', async ({ body, user, set }) => {
             try {
                 const userId = Number(user.id);
@@ -73,7 +70,6 @@ export const shoeRoutes = new Elysia()
             })
         })
 
-        // 🟢 3. PATCH /:id/default -> สั่งให้คู่นี้เป็นคู่หลัก
         .patch('/:id/default', async ({ params, user, set }) => {
             const shoeId = Number(params.id);
             const userId = Number(user.id);
@@ -94,7 +90,6 @@ export const shoeRoutes = new Elysia()
             }
         })
 
-        // 🟢 4. PATCH /:id/retire -> ปลดระวาง
         .patch('/:id/retire', async ({ params }) => {
             const id = Number(params.id);
 

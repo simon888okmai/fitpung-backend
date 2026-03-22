@@ -7,7 +7,6 @@ import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 export const activityPageRoute = new Elysia()
     .use(authMiddleware)
     .group('/stats', (app) => app
-        // 🟢 GET /?month=1&year=2026
         .get('/', async ({ query, set, user }) => {
             const userId = Number(user.id);
             const month = Number(query.month);
@@ -19,16 +18,13 @@ export const activityPageRoute = new Elysia()
             }
 
             try {
-                // 👤 0. ดึงชื่อ User
                 const profile = await db.query.usersProfile.findFirst({
                     where: eq(usersProfile.userId, userId)
                 });
 
-                // 🗓️ 1. กำหนดช่วงเวลาเดือนนี้
                 const startDate = new Date(year, month - 1, 1);
                 const endDate = new Date(year, month, 0, 23, 59, 59);
 
-                // 🏃‍♂️ 2. ดึง Activity เดือนนี้
                 const monthlyActivities = await db.query.activities.findMany({
                     where: and(
                         eq(activities.userId, userId),
@@ -38,7 +34,6 @@ export const activityPageRoute = new Elysia()
                     orderBy: [desc(activities.startTime)]
                 });
 
-                // --- 🧮 คำนวณ Summary ---
                 const totalDistance = monthlyActivities.reduce((sum, act) => sum + act.distance, 0);
                 const totalDuration = monthlyActivities.reduce((sum, act) => sum + act.duration, 0);
                 const totalCalories = monthlyActivities.reduce((sum, act) => sum + act.calories, 0);
@@ -49,19 +44,16 @@ export const activityPageRoute = new Elysia()
 
                 const streak = 3;
 
-                // --- 🎯 Weekly Goal ---
                 const activeGoal = await db.query.weeklyGoals.findFirst({
                     where: and(eq(weeklyGoals.userId, userId), eq(weeklyGoals.status, 'ACTIVE')),
                     orderBy: [desc(weeklyGoals.createdAt)]
                 });
 
-                // --- 🏆 Badges ---
                 const myBadgeCount = (await db.select({ count: sql<number>`count(*)` })
                     .from(userBadges).where(eq(userBadges.userId, userId)))[0].count;
                 const totalBadgeCount = (await db.select({ count: sql<number>`count(*)` })
                     .from(badges))[0].count;
 
-                // --- 📝 Recent Runs ---
                 const recentRuns = monthlyActivities.slice(0, 5).map(run => {
                     return {
                         id: `run-${run.id}`,

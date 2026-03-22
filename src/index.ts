@@ -13,7 +13,6 @@ const app = new Elysia()
         status: 200,
         message: 'Server is running'
     }))
-    // รวม Route ต่างๆ เข้ามา
     .use(authRoutes)
     .use(goalRoutes)
     .use(activityRoutes)

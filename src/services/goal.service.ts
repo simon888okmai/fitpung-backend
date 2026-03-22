@@ -1,10 +1,8 @@
-// src/services/goal.service.ts
 import { db } from '../db';
 import { weeklyGoals } from '../db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 
 export const updateWeeklyGoalProgress = async (userId: number, distance: number) => {
-    // 1. คำนวณวันจันทร์-อาทิตย์ (Logic เดิมที่เคยรกอยู่ใน route)
     const now = new Date();
     const currentDay = now.getDay();
     const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
@@ -16,7 +14,6 @@ export const updateWeeklyGoalProgress = async (userId: number, distance: number)
     endDate.setDate(startDate.getDate() + 6);
     endDate.setHours(23, 59, 59, 999);
 
-    // 2. ค้นหา Goal
     const currentGoal = await db.query.weeklyGoals.findFirst({
         where: and(
             eq(weeklyGoals.userId, userId),
@@ -25,7 +22,6 @@ export const updateWeeklyGoalProgress = async (userId: number, distance: number)
         )
     });
 
-    // 3. ถ้ามี Goal -> อัปเดต
     if (currentGoal) {
         await db.update(weeklyGoals)
             .set({
@@ -34,8 +30,8 @@ export const updateWeeklyGoalProgress = async (userId: number, distance: number)
             .where(eq(weeklyGoals.id, currentGoal.id));
 
         console.log(`✅ Updated Goal for user ${userId}: +${distance}km`);
-        return true; // บอกว่าอัปเดตสำเร็จ
+        return true;
     }
 
-    return false; // ไม่มีการอัปเดต (อาจจะเพราะไม่มี Goal)
+    return false;
 };
