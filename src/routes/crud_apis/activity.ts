@@ -77,6 +77,7 @@ export const activityRoutes = new Elysia()
                     distance: true,
                     duration: true,
                     calories: true,
+                    pace: true,
                     startTime: true,
                 }
             });
