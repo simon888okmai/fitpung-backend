@@ -14,5 +14,5 @@ ENV NODE_ENV=production
 # Expose backend port
 EXPOSE 3001
 
-# Start the application
-CMD ["bun", "run", "src/index.ts"]
+# Start the application (Run ORM push first, then start server)
+CMD ["sh", "-c", "bunx drizzle-kit push && bun run src/index.ts"]
